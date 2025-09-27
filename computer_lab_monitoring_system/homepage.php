@@ -1,4 +1,4 @@
-<div?php 
+<?php 
 
 ?>
 
@@ -135,7 +135,7 @@
         }
 
         .belowContent a {
-            width: 500px;
+            width: 700px;
             height: 400px;
             background-position: center;
             background-size: cover;
@@ -149,11 +149,11 @@
 
         /* change the backdrop */
         .button1 {
-            background-image: url('https://i.ibb.co/BCkxxd8/ai-gen.png'); 
+            background-image: url('https://i.ibb.co/F899tsF/1.jpg'); 
         }
 
         .button2 {
-            background-image: url('https://i.ibb.co/BCkxxd8/ai-gen.png');  
+            background-image: url('https://i.ibb.co/T0GgtHT/2.jpg');  
         }
 
         .belowContent a:hover{
@@ -178,9 +178,9 @@
     <header>
         <img src="https://kppim.uitm.edu.my/images/logo/LOGO_KPPIM-02.png" alt="logo">
         <h1>Lab Monitoring System</h1>
-        <a class="split"  href="login.php">
+        <a class="split"  href="login.php?userType=Admin">
             <button class="login-btn">
-                <span class="btn-text">Log in</span> <!--login-->
+                <span class="btn-text">Log in as Admin</span> <!--login-->
                 <span class="btn-icon"><i class="fa fa-lock" aria-hidden="true"></i></span>
             </button>
         </a>
@@ -190,16 +190,16 @@
     <div class="content">
         
         <div class="contentHeader">
-            <h1 class="title">CHOOSE YOUR OPTION</h1>
+            <h1 class="title">CHOOSE YOUR LOGIN OPTION</h1>
         </div>
     </div>
 
     <div class="centeredContent">
-        <div class="belowContent">
-            <a class="button1" href="#button"> This is a box </a>
-            <a class="button2" href="#demn"> This is a second box</a>
-        </div>
+    <div class="belowContent">
+        <a class="button1" href="login.php?userType=Student"></a>
+        <a class="button2" href="login.php?userType=Lecturer"></a>
     </div>
-    
+</div>
+
 </body>
 </html>

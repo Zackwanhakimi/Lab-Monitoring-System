@@ -10,7 +10,6 @@ if (!isset($_SESSION['Admin_ID'])) {
 
 include 'connect.php';
 
-
 // Fetch total number of students who have entered the lab
 $sql_students = "SELECT COUNT(DISTINCT Stud_ID) AS total_students FROM Entry";
 $result_students = $conn->query($sql_students);
@@ -29,19 +28,29 @@ $sql_avg_time = "SELECT AVG(TIMESTAMPDIFF(SECOND, Entry_StartTime, Entry_EndTime
 $result_avg_time = $conn->query($sql_avg_time);
 $avg_time_spent = $result_avg_time->fetch_assoc()['avg_time'];
 
-// Fetch data for line graphs
+// Get the selected year from the dropdown or default to the current year
+$selectedYear = isset($_GET['year']) ? intval($_GET['year']) : date('Y');
+
+// Fetch yearly data for line charts (entries for each month in both labs)
 $lineData = [];
-$partData = [];
 for ($month = 1; $month <= 12; $month++) {
     for ($lab = 1; $lab <= 2; $lab++) {
-        $query = "SELECT COUNT(*) as total FROM entry WHERE MONTH(Entry_Date) = $month AND Lab_ID = $lab";
+        $query = "SELECT COUNT(*) AS total FROM Entry 
+                  WHERE MONTH(Entry_Date) = $month AND YEAR(Entry_Date) = $selectedYear AND Lab_ID = $lab";
         $result = $conn->query($query);
         $row = $result->fetch_assoc();
         $lineData[$lab][] = [(string)$month, (int)$row['total']];
     }
-    
-    // Fetch data for student parts
-    $query = "SELECT student.Stud_Part, COUNT(*) as total FROM entry INNER JOIN student ON entry.Stud_ID = student.Stud_ID WHERE MONTH(entry.Entry_Date) = $month GROUP BY student.Stud_Part";
+}
+
+// Fetch data for student parts (entries for each part in each month)
+$partData = [];
+for ($month = 1; $month <= 12; $month++) {
+    $query = "SELECT Student.Stud_Part, COUNT(*) AS total 
+              FROM Entry 
+              INNER JOIN Student ON Entry.Stud_ID = Student.Stud_ID 
+              WHERE MONTH(Entry_Date) = $month AND YEAR(Entry_Date) = $selectedYear 
+              GROUP BY Student.Stud_Part";
     $result = $conn->query($query);
     $partRow = [];
     while ($row = $result->fetch_assoc()) {
@@ -50,9 +59,13 @@ for ($month = 1; $month <= 12; $month++) {
     $partData[] = array_merge(['Month' => (string)$month], $partRow);
 }
 
-// Fetch data for pie chart
+// Fetch data for pie chart (entry distribution by student part)
 $pieData = [];
-$query = "SELECT student.Stud_Part, COUNT(*) as total FROM entry INNER JOIN student ON entry.Stud_ID = student.Stud_ID GROUP BY student.Stud_Part";
+$query = "SELECT Student.Stud_Part, COUNT(*) AS total 
+          FROM Entry 
+          INNER JOIN Student ON Entry.Stud_ID = Student.Stud_ID 
+          WHERE YEAR(Entry_Date) = $selectedYear 
+          GROUP BY Student.Stud_Part";
 $result = $conn->query($query);
 while ($row = $result->fetch_assoc()) {
     $pieData[] = [$row['Stud_Part'], (int)$row['total']];
@@ -84,6 +97,7 @@ $avgEntries = (float)$row['avg_entries'];
     <link rel="stylesheet" href="css/dashboard.css">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="stylesheet" href="css/style.css">
+
     <style>
 	.table-container {
             width: 100%;
@@ -123,117 +137,105 @@ $avgEntries = (float)$row['avg_entries'];
 	.actions button, .actions a {
 		margin: 0 5px;
 	}
-
-#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 10000;
-}
-
-#sidebar:active {
-    left: 0;
-}
-
-
+    
+	
   </style>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <script type="text/javascript">
-      google.charts.load('current', {'packages':['corechart', 'line']});
-      google.charts.setOnLoadCallback(drawCharts);
+        google.charts.load('current', {'packages':['corechart', 'line']});
+        google.charts.setOnLoadCallback(drawCharts);
 
-      function drawCharts() {
-          drawLineCharts();
-          drawPieChart();
-      }
+        function drawCharts() {
+            drawLineCharts();
+            drawPieChart();
+        }
 
-      function drawLineCharts() {
-          var data1 = new google.visualization.DataTable();
-          data1.addColumn('string', 'Month');
-          data1.addColumn('number', 'Total Entries');
-          <?php
-          foreach ($lineData[1] as $row) {
-              echo "data1.addRow(['{$row[0]}', {$row[1]}]);";
-          }
-          ?>
+        function drawLineCharts() {
+            // Line chart for Lab 1
+            var data1 = new google.visualization.DataTable();
+            data1.addColumn('string', 'Month');
+            data1.addColumn('number', 'Total Entries');
+            <?php foreach ($lineData[1] as $row) {
+                echo "data1.addRow(['{$row[0]}', {$row[1]}]);";
+            } ?>
+            var options1 = {
+                title: 'Total Entries in Makmal Komputer - Security & Networking by Month',
+                hAxis: {title: 'Month'},
+                vAxis: {title: 'Total Entries'}
+            };
+            var chart1 = new google.visualization.LineChart(document.getElementById('line_chart_lab1'));
+            chart1.draw(data1, options1);
 
-          var options1 = {
-              title: 'Total Entries in Makmal Komputer - Security & Networking by Month',
-              hAxis: {title: 'Month'},
-              vAxis: {title: 'Total Entries'}
-          };
+            // Line chart for Lab 2
+            var data2 = new google.visualization.DataTable();
+            data2.addColumn('string', 'Month');
+            data2.addColumn('number', 'Total Entries');
+            <?php foreach ($lineData[2] as $row) {
+                echo "data2.addRow(['{$row[0]}', {$row[1]}]);";
+            } ?>
+            var options2 = {
+                title: 'Total Entries in Makmal Komputer (AI) by Month',
+                hAxis: {title: 'Month'},
+                vAxis: {title: 'Total Entries'}
+            };
+            var chart2 = new google.visualization.LineChart(document.getElementById('line_chart_lab2'));
+            chart2.draw(data2, options2);
 
-          var chart1 = new google.visualization.LineChart(document.getElementById('line_chart_lab1'));
-          chart1.draw(data1, options1);
+            // Line chart for student parts
+            var partData = new google.visualization.DataTable();
+            partData.addColumn('string', 'Month');
+            <?php
+            $parts = array_keys($partData[0]);
+            foreach ($parts as $index => $part) {
+                if ($part !== 'Month') {
+                    $partLabel = 'Part ' . ($index + 1); // Ensure labels start from Part 1
+                    echo "partData.addColumn('number', '{$partLabel}');";
+                }
+            }
+            ?>
+            <?php
+            // Add rows for each month and part
+            foreach ($partData as $row) {
+                $rowValues = "['{$row['Month']}'";
+                foreach ($parts as $part) {
+                    if ($part !== 'Month') {
+                        $rowValues .= ", " . (isset($row[$part]) ? $row[$part] : 0);
+                    }
+                }
+                $rowValues .= "]";
+                echo "partData.addRow($rowValues);";
+            }
+            ?>
+            var partOptions = {
+                title: 'Total Entries by Student Part',
+                hAxis: {title: 'Month'},
+                vAxis: {title: 'Total Entries'},
+            };
+            var partChart = new google.visualization.LineChart(document.getElementById('line_chart_parts'));
+            partChart.draw(partData, partOptions);
+        }
 
-          var data2 = new google.visualization.DataTable();
-          data2.addColumn('string', 'Month');
-          data2.addColumn('number', 'Total Entries');
-          <?php
-          foreach ($lineData[2] as $row) {
-              echo "data2.addRow(['{$row[0]}', {$row[1]}]);";
-          }
-          ?>
-
-          var options2 = {
-              title: 'Total Entries in Makmal Komputer (AI) by Month',
-              hAxis: {title: 'Month'},
-              vAxis: {title: 'Total Entries'}
-          };
-
-          var chart2 = new google.visualization.LineChart(document.getElementById('line_chart_lab2'));
-          chart2.draw(data2, options2);
-          
-          // Data for total entries by student part
-          var partData = new google.visualization.DataTable();
-          partData.addColumn('string', 'Month');
-          partData.addColumn('number', 'Part 1');
-          partData.addColumn('number', 'Part 2');
-          partData.addColumn('number', 'Part 3');
-          <?php
-          foreach ($partData as $row) {
-              echo "partData.addRow(['{$row['Month']}', " . (isset($row[1]) ? $row[1] : 0) . ", " . (isset($row[2]) ? $row[2] : 0) . ", " . (isset($row[3]) ? $row[3] : 0) . "]);";
-          }
-          ?>
-          
-          var partOptions = {
-              title: 'Total Entries by Student Part',
-              hAxis: {title: 'Month'},
-              vAxis: {title: 'Total Entries'},
-              series: {
-                  0: {color: '#e2431e'},
-                  1: {color: '#6f9654'},
-                  2: {color: '#1c91c0'}
-              }
-          };
-          
-          var partChart = new google.visualization.LineChart(document.getElementById('line_chart_parts'));
-          partChart.draw(partData, partOptions);
-      }
-
-      function drawPieChart() {
-          var data = google.visualization.arrayToDataTable([
-              ['Student Part', 'Total Entries'],
-              <?php
-              foreach ($pieData as $row) {
-                  echo "['{$row[0]}', {$row[1]}],";
-              }
-              ?>
-          ]);
-
-          var options = {
-              title: 'Entry Percentage by Student Part',
-              pieHole: 0.4,
-          };
-
-          var chart = new google.visualization.PieChart(document.getElementById('pie_chart'));
-          chart.draw(data, options);
-      }
+        function drawPieChart() {
+            var data = google.visualization.arrayToDataTable([
+                ['Student Part', 'Total Entries'],
+                <?php foreach ($pieData as $row) {
+                    echo "['{$row[0]}', {$row[1]}],";
+                } ?>
+            ]);
+            var options = {
+                title: 'Entry Percentage by Student Part',
+                pieHole: 0.4,
+            };
+            var chart = new google.visualization.PieChart(document.getElementById('pie_chart'));
+            chart.draw(data, options);
+        }
     </script>
 </head>
 
 <body>
+    <!-- this is the sidebar -->
 	<div class="wrapper d-flex align-items-stretch">
-		<nav id="sidebar">
+    <nav id="sidebar">
 			<div class="custom-menu">
 				<button type="button" id="sidebarCollapse" class="btn btn-primary">
 	                <i class="fa fa-bars"></i>
@@ -258,7 +260,7 @@ $avgEntries = (float)$row['avg_entries'];
                     <li>
                         <a href="studRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Student</a>
 	                </li>
-                  <li>
+                    <li>
 	        	        <a><span class="fa fa-user mr-3"></span>Lecturer Manage</a>
 	                </li>
                     <li>
@@ -271,10 +273,15 @@ $avgEntries = (float)$row['avg_entries'];
 	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
 	                </li>
                     <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                    <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
+	                </li>
+                    <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
                     </li>
                 </ul>
-
 	            <div class="footer">
 	        	    <p><!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
 						  Copyright &copy;<script>document.write(new Date().getFullYear());</script> All rights reserved | Prototype by UitDevTech <i class="icon-heart" aria-hidden="true"></i> by <a href="https://colorlib.com" target="_blank">Colorlib.com</a>
@@ -284,20 +291,106 @@ $avgEntries = (float)$row['avg_entries'];
     	</nav>
 
     <!-- Page Content  -->
-    <div id="content" class="p-4 p-md-5 pt-5">
+    <div id="content" class="p-4 p-md-5 pt-5" style="flex-grow: 1;">
         <h1>Lab Access Statistics</h1>
-        
-        <div>
-    <div id="line_chart_lab1" style="width: 900px; height: 500px;"></div>
-    <div id="line_chart_lab2" style="width: 900px; height: 500px;"></div>
-    <div id="line_chart_parts" style="width: 900px; height: 500px;"></div>
-    <div id="pie_chart" style="width: 900px; height: 500px;"></div>
+        <div class="row">
+            <div style="width: 50%; padding: 10px; ">
+                <h6>Makmal Komputer - Security & Networking</h6>
+                                <table>
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Student ID</th>
+                                    <th>Entry Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                // Update the query to fetch current students ordered by latest entry
+                                $sql_current_students = "SELECT s.Stud_Name, e.Stud_ID, e.Entry_StartTime 
+                                                        FROM Entry e
+                                                        INNER JOIN Student s ON e.Stud_ID = s.Stud_ID
+                                                        WHERE e.Entry_EndTime IS NULL AND e.Lab_ID = 1
+                                                        ORDER BY e.Entry_StartTime DESC";
 
-    <h2>Total Students Entered Lab Today: <?php echo $totalToday; ?></h2>
-    <h2>Average Number of Entries Each Day: <?php echo round($avgEntries, 2); ?></h2>
+                                $result_current_students = $conn->query($sql_current_students);
 
+                                if ($result_current_students->num_rows > 0): 
+                                    while ($row = $result_current_students->fetch_assoc()): ?>
+                                        <tr>
+                                            <td><?= htmlspecialchars($row['Stud_Name']); ?></td>
+                                            <td><?= htmlspecialchars($row['Stud_ID']); ?></td>
+                                            <td><?= htmlspecialchars($row['Entry_StartTime']); ?></td>
+                                        </tr>
+                                    <?php endwhile; 
+                                else: ?>
+                                    <tr>
+                                        <td colspan="3">No students currently in the lab.</td>
+                                    </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+            </div>
+            <div style="width: 50%; padding: 10px;">
+                <h6>Makmal AI</h6>
+                            <table>
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Student ID</th>
+                                <th>Entry Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php
+                            // Update the query to fetch current students ordered by latest entry
+                            $sql_current_students = "SELECT s.Stud_Name, e.Stud_ID, e.Entry_StartTime 
+                                                    FROM Entry e
+                                                    INNER JOIN Student s ON e.Stud_ID = s.Stud_ID
+                                                    WHERE e.Entry_EndTime IS NULL AND e.Lab_ID = 2
+                                                    ORDER BY e.Entry_StartTime DESC";
+
+                            $result_current_students = $conn->query($sql_current_students);
+
+                            if ($result_current_students->num_rows > 0): 
+                                while ($row = $result_current_students->fetch_assoc()): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($row['Stud_Name']); ?></td>
+                                        <td><?= htmlspecialchars($row['Stud_ID']); ?></td>
+                                        <td><?= htmlspecialchars($row['Entry_StartTime']); ?></td>
+                                    </tr>
+                                <?php endwhile; 
+                            else: ?>
+                                <tr>
+                                    <td colspan="3">No students currently in the lab.</td>
+                                </tr>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+            </div>
         </div>
+        
+        <form method="get" action="Dashboard.php">
+        <label for="year">Select Year:</label>
+        <select id="year" name="year" onchange="this.form.submit()">
+            <?php for ($year = 2024; $year <= date('Y'); $year++) { ?>
+                <option value="<?php echo $year; ?>" <?php echo $year == $selectedYear ? 'selected' : ''; ?>><?php echo $year; ?></option>
+            <?php } ?>
+        </select>
+    </form>
 
+        <div class="row">
+            <div id="line_chart_lab1" style="width: 50%; padding: 10px; height: 400px;"></div>
+            <div id="line_chart_lab2" style="width: 50%; padding: 10px; height: 400px;"></div>
+        </div>
+        <div class="row">
+            <div id="line_chart_parts" style="width: 50%; padding: 10px; height: 400px;"></div>
+            <div id="pie_chart" style="width: 50%; padding: 10px; height: 400px;"></div>
+        </div>
+             
+        <div><h2>Total Students Entered Lab Today: <?php echo $totalToday; ?></h2></div>
+        <div><h2>Average Number of Entries Each Day: <?php echo round($avgEntries, 2); ?></h2></div>
+                                
         <div class="stat">
             <h3>Total number of students who used the lab: <?php echo $total_students; ?></h3>
         </div>

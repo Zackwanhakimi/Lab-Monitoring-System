@@ -12,6 +12,18 @@ include("connect.php");
 
 // Fetch all lecturers from the lecturer table
 $sql = "SELECT Lect_ID, Lect_Name FROM lecturer ORDER BY Lect_Name ASC";
+
+// Handle search filters
+$searchID = isset($_GET['searchID']) ? trim($_GET['searchID']) : '';
+
+if ($searchID) {
+    $conditions = [];
+    if ($searchID) {
+        $conditions[] = "Lect_ID LIKE '%" . $conn->real_escape_string($searchID) . "%'";
+    }
+    $sql = "SELECT * FROM lecturer WHERE " . implode(' AND ', $conditions) . " ORDER BY Lect_Name ASC";
+}
+
 $result = $conn->query($sql);
 
 $lecturers = [];
@@ -31,7 +43,6 @@ if ($result->num_rows > 0) {
     <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <style>
 .table-container {
@@ -69,12 +80,6 @@ tr:hover {
 .actions button, .actions a {
     margin: 0 5px;
 }
-
-nav#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
-}
 </style>
 <body>
 <div class="wrapper d-flex align-items-stretch">
@@ -103,7 +108,7 @@ nav#sidebar{
                     <li>
                         <a href="studRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Student</a>
 	                </li>
-                  <li class="active">
+                  <li>
 	        	        <a><span class="fa fa-user mr-3"></span>Lecturer Manage</a>
 	                </li>
                     <li class="active">
@@ -113,7 +118,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+                    <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                    <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
@@ -132,6 +143,18 @@ nav#sidebar{
     <div id="content" class="p-4 p-md-5 pt-5">
         <h2 class="mb-4">LECTURER LIST</h2>
         <h3>ALL REGISTERED LECTURERS</h3>
+        
+        <!-- Search Form -->
+		<div class="search-container">
+                <form method="GET" action="lectList.php">
+                    <label for="searchID">Search by Lecturer ID:</label>
+                    <input type="text" name="searchID" id="searchID" placeholder="Enter Lecturer ID" value="<?= htmlspecialchars($searchID) ?>">
+
+                    <button type="submit">Search</button>
+                    <a href="lectList.php" style="padding: 8px; background-color: #4caf50; color: white; text-decoration: none;">Reset</a>
+                </form>
+            </div>
+        
         <?php if (!empty($lecturers)): ?>
             <table>
                 <thead>

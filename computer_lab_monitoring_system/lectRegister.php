@@ -115,12 +115,6 @@ button {
 button:hover {
   background-color: #555;
 }
-
-nav#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
-}
 </style>
 
   <body onload="showNotification()">
@@ -136,7 +130,7 @@ nav#sidebar{
 			<div class="p-4">
 		  		<h1><a href="dashboard.php" class="logo"><?php echo $_SESSION['Admin_name'] ?><span><?php echo $_SESSION['Admin_ID'] ?><span>Admin</span></a></h1>
                   <ul class="list-unstyled components mb-5">
-	                <li>
+                  <li>
 	                    <a href="dashboard.php"><span class="fa fa-pie-chart mr-3"></span> Lab Statistics</a>
 	                </li>
                     <li>
@@ -151,7 +145,7 @@ nav#sidebar{
                     <li>
                         <a href="studRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Student</a>
 	                </li>
-                  <li class="active">
+                  <li>
 	        	        <a><span class="fa fa-user mr-3"></span>Lecturer Manage</a>
 	                </li>
                     <li>
@@ -161,7 +155,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+                  <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                  <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>

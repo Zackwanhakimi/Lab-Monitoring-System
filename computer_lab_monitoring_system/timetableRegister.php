@@ -9,32 +9,51 @@ if (!isset($_SESSION['Admin_ID'])) {
 
 include("connect.php");
 
+// Fetch available labs
+$sql = "SELECT Lab_ID, Lab_Name FROM lab";
+$result = $conn->query($sql);
+$labs = [];
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $labs[] = $row;
+    }
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $day = $_POST['Timetable_Day'];
     $startTime = $_POST['Timetable_StartTime'];
     $endTime = $_POST['Timetable_EndTime'];
     $className = $_POST['Timetable_ClassName'];
+    $labId = $_POST['Lab_ID'];
 
     // Validate input
-    if (empty($day) || empty($startTime) || empty($endTime) || empty($className)) {
-        $error = "All fields are required.";
-    } elseif (strtotime($endTime) <= strtotime($startTime)) {
-        $error = "End time must be after start time.";
-    } else {
-        // Insert into timetable
-        $sql = "INSERT INTO timetable (Timetable_Day, Timetable_StartTime, Timetable_EndTime, Timetable_ClassName) VALUES (?, ?, ?, ?)";
-        $stmt = $conn->prepare($sql);
-        $stmt->bind_param("ssss", $day, $startTime, $endTime, $className);
-
-        if ($stmt->execute()) {
-            $success = "Class successfully registered.";
-        } else {
-            $error = "Failed to register class: " . $conn->error;
-        }
-        $stmt->close();
+    if (!$day || !$startTime || !$endTime || !$className || !$labId) {
+      $error = "All fields are required.";
     }
+    
+    if (strtotime($endTime) <= strtotime($startTime)) {
+        $error = "End time must be after start time.";
+    } 
+    
+    // Insert into timetable
+    $sql = "INSERT INTO timetable (Timetable_Day, Timetable_StartTime, Timetable_EndTime, Timetable_ClassName, Lab_ID) VALUES (?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ssssi", $day, $startTime, $endTime, $className, $labId);
+
+    if ($stmt->execute()) {
+        $success = "Class successfully registered.";
+        header("Location: timetable.php");
+        exit();
+    } else {
+        $error = "Failed to register class: " . $conn->error;
+    }
+    $stmt->close();
+    $conn->close();
+    exit;
 }
+
+$days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 ?>
 
 <style>
@@ -102,25 +121,19 @@ button {
 button:hover {
   background-color: #555;
 }
-
-nav#sidebar{
-  position: fixed;
-  height: 100vh;
-  z-index: 100;
-}
 </style>
 
 <!doctype html>
 <html lang="en">
 <head>
-  	<title>Sidebar 05</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>Register Class</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
-	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-	<link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.6.0/css/bootstrap.min.css">
+  <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 </head>
 <body>
 <div class="wrapper d-flex align-items-stretch">
@@ -134,7 +147,7 @@ nav#sidebar{
 			<div class="p-4">
 		  		<h1><a href="dashboard.php" class="logo"><?php echo $_SESSION['Admin_name'] ?><span><?php echo $_SESSION['Admin_ID'] ?><span>Admin</span></a></h1>
                   <ul class="list-unstyled components mb-5">
-	                <li>
+                  <li>
 	                    <a href="dashboard.php"><span class="fa fa-pie-chart mr-3"></span> Lab Statistics</a>
 	                </li>
                     <li>
@@ -159,10 +172,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
 	                </li>
                   <li class="active">
-	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span> <span class="fa fa-plus mr-3"></span> Add New Class</a>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                  <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
@@ -177,42 +193,48 @@ nav#sidebar{
             </div>
     	</nav>
   <div class="container mt-5">
-    <h2>Register New Timetable Class</h2>
-
-    <?php if (!empty($error)): ?>
-        <div class="alert alert-danger"> <?= htmlspecialchars($error) ?> </div>
-    <?php elseif (!empty($success)): ?>
-        <div class="alert alert-success"> <?= htmlspecialchars($success) ?> </div>
-    <?php endif; ?>
-
+    <h2>Register New Class</h2>
+    <?php if (!empty($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
+    <?php if (!empty($success)) echo "<div class='alert alert-success'>$success</div>"; ?>
     <form method="POST" action="">
-        <div class="form-group">
-            <label for="Timetable_Day">Day</label>
-            <select class="form-control" id="Timetable_Day" name="Timetable_Day" required>
-                <option value="">Select Day</option>
-                <option value="Monday">Monday</option>
-                <option value="Tuesday">Tuesday</option>
-                <option value="Wednesday">Wednesday</option>
-                <option value="Thursday">Thursday</option>
-                <option value="Friday">Friday</option>
-            </select>
-        </div>
+      
+        <label for="Timetable_Day">Day</label>
+        <select id="Timetable_Day" name="Timetable_Day" required>
+            <option value="">Select Day</option>
+            <?php foreach ($days as $day): ?>
+                <option value="<?= htmlspecialchars($day) ?>"><?= htmlspecialchars($day) ?></option>
+            <?php endforeach; ?>
+        </select>
+    
+        <label for="Timetable_StartTime">Start Time</label>
+        <select name="Timetable_StartTime" id="Timetable_StartTime" required>
+          <option value="">Select Start Time</option>
+          <?php for ($i = 8; $i <= 22; $i++): ?>
+              <option value="<?= $i ?>"><?= date("g:i A", strtotime("$i:00")) ?></option>
+          <?php endfor; ?>
+        </select>
+    
+        <label for="Timetable_EndTime">End Time</label>
+        <select name="Timetable_EndTime" id="Timetable_EndTime" required>
+          <option value="">Select End Time</option>
+          <?php for ($i = 9; $i <= 22; $i++): ?>
+              <option value="<?= $i ?>"><?= date("g:i A", strtotime("$i:00")) ?></option>
+          <?php endfor; ?>
+        </select>
 
-        <div class="form-group">
-            <label for="Timetable_StartTime">Start Time</label>
-            <input type="time" class="form-control" id="Timetable_StartTime" name="Timetable_StartTime" required>
-        </div>
-
-        <div class="form-group">
-            <label for="Timetable_EndTime">End Time</label>
-            <input type="time" class="form-control" id="Timetable_EndTime" name="Timetable_EndTime" required>
-        </div>
-
-         <div class="form-group">
-            <label for="Timetable_ClassName">Class Name</label>
-            <input type="text" class="form-control" id="Timetable_ClassName" name="Timetable_ClassName" required>
-        </div>
-
+        <label for="Lab_ID">Lab</label>
+        <select id="Lab_ID" name="Lab_ID" required>
+            <option value="">Select Lab</option>
+            <?php foreach ($labs as $lab): ?>
+                <option value="<?= htmlspecialchars($lab['Lab_ID']) ?>"><?= htmlspecialchars($lab['Lab_Name']) ?></option>
+            <?php endforeach; ?>
+        </select>
+      
+      <div class="form-group">
+        <label for="Timetable_ClassName">Class Name</label>
+        <input type="text" class="form-control" id="Timetable_ClassName" name="Timetable_ClassName" required>
+      </div>
+        
         <button type="submit" class="btn btn-primary">Register</button>
         <a href="timetable.php" class="btn btn-secondary">Back to Timetable</a>
     </form>

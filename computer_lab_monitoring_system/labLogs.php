@@ -5,7 +5,7 @@ session_start(); // Start session
 if (!isset($_SESSION['Admin_ID'])) {
     // Redirect to login page if not logged in
     header("Location: login.php");
-    exit();	
+    exit();
 }
 include 'connect.php';
 
@@ -14,40 +14,57 @@ $labs_query = "SELECT Lab_ID, Lab_Name FROM Lab";
 $result_labs = $conn->query($labs_query);
 
 // Default selected lab
-$selected_lab_id = isset($_GET['lab_id']) ? intval($_GET['lab_id']) : 1;
+$selected_lab_id = isset($_GET['lab_id']) ? intval($_GET['lab_id']) : null;
+
+// Initialize variables
+$logs_available = false;
+$filter_error = false;
 
 // Handle filtering parameters
 $filters = [];
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (!empty($_GET['student_id'])) {
-        $filters[] = "s.Stud_ID LIKE '%" . intval($_GET['student_id']) . "%'";
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && !empty($_GET['filter_type']) && !empty($_GET['filter_value']) && $selected_lab_id) {
+    $filter_type = $_GET['filter_type'];
+    $filter_value = mysqli_real_escape_string($conn, $_GET['filter_value']);
+
+    switch ($filter_type) {
+        case 'student_id':
+            $filters[] = "s.Stud_ID LIKE '%$filter_value%'";
+            break;
+        case 'student_name':
+            $filters[] = "s.Stud_Name LIKE '%$filter_value%'";
+            break;
+        case 'entry_date':
+            $filters[] = "DATE(e.Entry_Date) = '$filter_value'";
+            break;
+        case 'entry_duration':
+            $filters[] = "TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) >= $filter_value";
+            break;
+        case 'entry_month':
+            $filters[] = "MONTH(e.Entry_Date) = $filter_value";
+            break;
+        case 'student_part':
+            $filters[] = "s.Stud_Part LIKE '%$filter_value%'";
+            break;
+        default:
+            $filter_error = true;
     }
-    if (!empty($_GET['student_name'])) {
-        $filters[] = "s.Stud_Name LIKE '%" . mysqli_real_escape_string($conn, $_GET['student_name']) . "%'";
-    }
-    if (!empty($_GET['entry_date'])) {
-        $filters[] = "DATE(e.Entry_Date) = '" . mysqli_real_escape_string($conn, $_GET['entry_date']) . "'";
-    }
-    if (!empty($_GET['entry_duration'])) {
-        $filters[] = "TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) >= " . intval($_GET['entry_duration']);
-    }
-    if (!empty($_GET['entry_month'])) {
-        $filters[] = "MONTH(e.Entry_Date) = " . intval($_GET['entry_month']);
-    }
-    if (!empty($_GET['student_part'])) {
-        $filters[] = "s.Stud_Part LIKE '%" . mysqli_real_escape_string($conn, $_GET['student_part']) . "%'";
+
+    if (!$filter_error) {
+        // Construct the SQL query with filters
+        $where_clause = count($filters) > 0 ? 'AND ' . implode(' AND ', $filters) : '';
+        $sql_logs = "SELECT s.Stud_ID, s.Stud_Name, s.Stud_Part, e.Entry_Date, 
+                     DATE_FORMAT(e.Entry_StartTime, '%l:%i %p') AS Entry_Time, 
+                     DATE_FORMAT(e.Entry_EndTime, '%l:%i %p') AS Exit_Time, 
+                     TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) AS Entry_Duration
+                     FROM Entry e
+                     JOIN Student s ON e.Stud_ID = s.Stud_ID
+                     WHERE e.Lab_ID = $selected_lab_id $where_clause
+                     ORDER BY e.Entry_Date DESC, e.Entry_StartTime DESC";
+        $result_logs = $conn->query($sql_logs);
+
+        $logs_available = $result_logs && $result_logs->num_rows > 0;
     }
 }
-
-// Construct the SQL query with filters
-$where_clause = count($filters) > 0 ? 'AND ' . implode(' AND ', $filters) : '';
-$sql_logs = "SELECT s.Stud_ID, s.Stud_Name, s.Stud_Part, e.Entry_Date, 
-             TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) AS Entry_Duration
-             FROM Entry e
-             JOIN Student s ON e.Stud_ID = s.Stud_ID
-             WHERE e.Lab_ID = $selected_lab_id $where_clause
-             ORDER BY e.Entry_Date DESC";
-$result_logs = $conn->query($sql_logs);
 ?>
 
 <!doctype html>
@@ -84,81 +101,13 @@ $result_logs = $conn->query($sql_logs);
         table th {
             background-color: #f2f2f2;
         }
-
-        /* Center the dropdown button */
-.center {
-    display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center;
-}
-
-/* Dropdown button */
-.dropdown-btn {
-	display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    text-decoration: none;
-    color: #FFFFFF99;
-    display: flex; /* Keep the icon and text aligned */
-    justify-content: space-between;
-    width: 100%; /* Full width */
-    background: none;
-    border: none;
-    cursor: pointer;
-    outline: none;
-    font-size: 16px;
-    transition: color 0.3s;
-	z-index: 101;
-	
-}
-
-.dropdown-btn:hover {
-    color: #f2f2f2;
-}
-
-/* Dropdown container list styling */
-.dropdown-container {
-    display: none; /* Hidden by default */
-    flex-direction: row;
-    margin-top: 10px;
-    padding-left: 20px;
-}
-
-.dropdown-container a {
-	display: flex;
-	flex-direction: column;
-    color: #FFFFFF99;
-    text-decoration: none;
-    padding: 5px 10px;
-    transition: color 0.3s;
-}
-
-.dropdown-container a:hover {
-    color: #f2f2f2;
-}
-
-/* Optional: Icon alignment */
-.fa-caret-down {
-    margin-left: auto; /* Push the caret icon to the far right */
-}
-
-.fa-pencil-square-o{
-	color:#6fb5ff;
-}
-
-
-nav#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
-}
-
     </style>
     <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
     <link rel="stylesheet" href="css/dashboard.css">
 	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 	<link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 <div class="wrapper d-flex align-items-stretch">
 <nav id="sidebar">
@@ -196,7 +145,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+                    <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                    <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
@@ -214,150 +169,111 @@ nav#sidebar{
     <!-- Page Content  -->
     <div id="content" class="p-4 p-md-5 pt-5">
     <div class="wrapper">
-        <h2>Lab Logs</h2>
+    <h2>Lab Logs</h2>
 
-        <!-- Lab selection -->
-        <div class="lab-tabs">
-            <?php while ($lab = $result_labs->fetch_assoc()): ?>
-                <a href="LabLogs.php?lab_id=<?= $lab['Lab_ID']; ?>" 
-                   class="<?= $selected_lab_id == $lab['Lab_ID'] ? 'active' : ''; ?>">
-                    <?= htmlspecialchars($lab['Lab_Name']); ?>
-                </a>
-            <?php endwhile; ?>
-        </div>
+    <!-- Lab selection -->
+    <div class="lab-tabs">
+        <?php while ($lab = $result_labs->fetch_assoc()): ?>
+            <a href="LabLogs.php?lab_id=<?= $lab['Lab_ID']; ?>" 
+               class="<?= $selected_lab_id == $lab['Lab_ID'] ? 'active' : ''; ?>">
+                <?= htmlspecialchars($lab['Lab_Name']); ?>
+            </a>
+        <?php endwhile; ?>
+    </div>
 
-        <!-- Filter form -->
-<form method="GET" class="filters">
-    <input type="hidden" name="lab_id" value="<?= $selected_lab_id; ?>">
-    <label for="student_id">Student ID:</label>
-    <input type="text" name="student_id" id="student_id" value="<?= $_GET['student_id'] ?? ''; ?>">
+    <!-- Filter form -->
+    <form method="GET" class="filters">
+        <input type="hidden" name="lab_id" value="<?= $selected_lab_id; ?>">
 
-    <label for="student_name">Student Name:</label>
-    <input type="text" name="student_name" id="student_name" value="<?= $_GET['student_name'] ?? ''; ?>">
+        <label for="filter_type">Filter By:</label>
+        <select name="filter_type" id="filter_type" onchange="updateInputPlaceholder()">
+            <option value="">Select Filter</option>
+            <option value="student_id" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'student_id' ? 'selected' : ''; ?>>Student ID</option>
+            <option value="student_name" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'student_name' ? 'selected' : ''; ?>>Student Name</option>
+            <option value="entry_date" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'entry_date' ? 'selected' : ''; ?>>Entry Date</option>
+            <option value="entry_duration" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'entry_duration' ? 'selected' : ''; ?>>Minimum Entry Duration</option>
+            <option value="entry_month" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'entry_month' ? 'selected' : ''; ?>>Entry Month</option>
+            <option value="student_part" <?= isset($_GET['filter_type']) && $_GET['filter_type'] == 'student_part' ? 'selected' : ''; ?>>Student Part</option>
+        </select>
 
-    <label for="entry_date">Entry Date (YYYY-MM-DD):</label>
-    <input type="date" name="entry_date" id="entry_date" value="<?= $_GET['entry_date'] ?? ''; ?>">
+        <label for="filter_value">Value:</label>
+        <input type="text" name="filter_value" id="filter_value" value="<?= $_GET['filter_value'] ?? ''; ?>" placeholder="Enter value">
 
-    <label for="entry_duration">Minimum Entry Duration (Minutes):</label>
-    <input type="number" name="entry_duration" id="entry_duration" value="<?= $_GET['entry_duration'] ?? ''; ?>">
+        <button type="submit">Apply Filter</button>
+    </form>
 
-    <label for="entry_month">Entry Month (1-12):</label>
-    <input type="number" name="entry_month" id="entry_month" value="<?= $_GET['entry_month'] ?? ''; ?>">
-
-    <label for="student_part">Student Part:</label>
-    <input type="text" name="student_part" id="student_part" value="<?= $_GET['student_part'] ?? ''; ?>">
-
-    <button type="submit">Apply Filters</button>
-</form>
-
-<!-- Log table -->
-<!-- Log table -->
-<!-- Log table -->
-<div class="table-container">
-    <h3>Logs for Selected Lab</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Student ID</th>
-                <th>Student Name</th>
-                <th>Student Part</th>
-                <th>Entry Date</th>
-                <th>Entry Time</th>
-                <th>Exit Time</th>
-                <th>Entry Duration (Minutes)</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php
-            // Build the SQL query with filters
-            $conditions = ["e.Lab_ID = $selected_lab_id"];
-            if (!empty($_GET['student_id'])) {
-                $student_id = $conn->real_escape_string($_GET['student_id']);
-                $conditions[] = "e.Stud_ID = '$student_id'";
-            }
-            if (!empty($_GET['student_name'])) {
-                $student_name = $conn->real_escape_string($_GET['student_name']);
-                $conditions[] = "s.Stud_Name LIKE '%$student_name%'";
-            }
-            if (!empty($_GET['entry_date'])) {
-                $entry_date = $conn->real_escape_string($_GET['entry_date']);
-                $conditions[] = "e.Entry_Date = '$entry_date'";
-            }
-            if (!empty($_GET['entry_duration'])) {
-                $entry_duration = intval($_GET['entry_duration']);
-                $conditions[] = "TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) >= $entry_duration";
-            }
-            if (!empty($_GET['entry_month'])) {
-                $entry_month = intval($_GET['entry_month']);
-                $conditions[] = "MONTH(e.Entry_Date) = $entry_month";
-            }
-            if (!empty($_GET['student_part'])) {
-                $student_part = $conn->real_escape_string($_GET['student_part']);
-                $conditions[] = "s.Stud_Part LIKE '%$student_part%'";
-            }
-
-            $where_clause = implode(' AND ', $conditions);
-
-            // Fetch logs with formatted times
-            $sql_logs = "SELECT e.Stud_ID, s.Stud_Name, s.Stud_Part, e.Entry_Date, 
-                                DATE_FORMAT(e.Entry_StartTime, '%l:%i %p') AS Entry_Time, 
-                                DATE_FORMAT(e.Entry_EndTime, '%l:%i %p') AS Exit_Time, 
-                                TIMESTAMPDIFF(MINUTE, e.Entry_StartTime, e.Entry_EndTime) AS Entry_Duration
-                         FROM Entry e
-                         INNER JOIN Student s ON e.Stud_ID = s.Stud_ID
-                         WHERE $where_clause
-                         ORDER BY e.Entry_Date DESC, e.Entry_StartTime DESC";
-            $result_logs = $conn->query($sql_logs);
-
-            if ($result_logs->num_rows > 0): 
-                while ($row = $result_logs->fetch_assoc()): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['Stud_ID']); ?></td>
-                        <td><?= htmlspecialchars($row['Stud_Name']); ?></td>
-                        <td><?= htmlspecialchars($row['Stud_Part']); ?></td>
-                        <td><?= htmlspecialchars($row['Entry_Date']); ?></td>
-                        <td><?= htmlspecialchars($row['Entry_Time']); ?></td>
-                        <td><?= htmlspecialchars($row['Exit_Time'] ?? 'N/A'); ?></td>
-                        <td><?= htmlspecialchars($row['Entry_Duration'] ?? 'N/A'); ?></td>
-                    </tr>
-                <?php endwhile; 
-            else: ?>
+    <!-- Log table -->
+    <?php if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['filter_type'])): ?>
+        <div class="table-container">
+            <h3>Logs for Selected Lab</h3>
+            <table>
+                <thead>
                 <tr>
-                    <td colspan="7">No logs found for the selected filters.</td>
+                    <th>Student ID</th>
+                    <th>Student Name</th>
+                    <th>Student Part</th>
+                    <th>Entry Date</th>
+                    <th>Entry Time</th>
+                    <th>Exit Time</th>
+                    <th>Entry Duration (Minutes)</th>
                 </tr>
-            <?php endif; ?>
-        </tbody>
-    </table>
+                </thead>
+                <tbody>
+                <?php if ($logs_available): ?>
+                    <?php while ($row = $result_logs->fetch_assoc()): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['Stud_ID']); ?></td>
+                            <td><?= htmlspecialchars($row['Stud_Name']); ?></td>
+                            <td><?= htmlspecialchars($row['Stud_Part']); ?></td>
+                            <td><?= htmlspecialchars($row['Entry_Date']); ?></td>
+                            <td><?= htmlspecialchars($row['Entry_Time']); ?></td>
+                            <td><?= htmlspecialchars($row['Exit_Time'] ?? 'N/A'); ?></td>
+                            <td><?= htmlspecialchars($row['Entry_Duration'] ?? 'N/A'); ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="7">No logs found for the selected filters.</td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
 </div>
 
-
-
-    </div>
-    </div>
-</div>
-
-<script src="js/jquery.min.js"></script>
-    <script src="js/popper.js"></script>
-    <script src="js/bootstrap.min.js"></script>
-    <script src="js/main.js"></script>
-
-	<script>
-		//* Loop through all dropdown buttons to toggle between hiding and showing its dropdown content - This allows the user to have multiple dropdowns without any conflict */
-var dropdown = document.getElementsByClassName("dropdown-btn");
-var i;
-
-for (i = 0; i < dropdown.length; i++) {
-  dropdown[i].addEventListener("click", function() {
-    this.classList.toggle("active");
-    var dropdownContent = this.nextElementSibling;
-    if (dropdownContent.style.display === "block") {
-      dropdownContent.style.display = "none";
-    } else {
-      dropdownContent.style.display = "block";
+<script>
+    function updateInputPlaceholder() {
+        const filterType = document.getElementById('filter_type').value;
+        const filterInput = document.getElementById('filter_value');
+        switch (filterType) {
+            case 'student_id':
+                filterInput.placeholder = 'Enter Student ID';
+                break;
+            case 'student_name':
+                filterInput.placeholder = 'Enter Student Name';
+                break;
+            case 'entry_date':
+                filterInput.placeholder = 'Enter Date (YYYY-MM-DD)';
+                break;
+            case 'entry_duration':
+                filterInput.placeholder = 'Enter Duration (Minutes)';
+                break;
+            case 'entry_month':
+                filterInput.placeholder = 'Enter Month (1-12)';
+                break;
+            case 'student_part':
+                filterInput.placeholder = 'Enter Student Part';
+                break;
+            default:
+                filterInput.placeholder = 'Enter value';
+        }
     }
-  });
-}
 
-	</script>
+    document.addEventListener('DOMContentLoaded', updateInputPlaceholder);
+</script>
+    </div>
+</div>
+
 </body>
 </html>

@@ -40,59 +40,78 @@ if (!$student) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $Stud_Name = trim($_POST['Stud_Name']);
-    $Updated_Stud_ID = intval($_POST['Stud_ID']); //Allow studentID edit
-    $Stud_Part = (int)$_POST['Stud_Part'];
+  $Stud_Name = trim($_POST['Stud_Name']);
+  $Updated_Stud_ID = intval($_POST['Stud_ID']); // Allow student ID edit
+  $Stud_Part = (int)$_POST['Stud_Part'];
 
-    // Input validation
-    if (!preg_match("/^[a-zA-Z\s]+$/", $Stud_Name)) {
+  // Input validation
+  if (!preg_match("/^[a-zA-Z\s]+$/", $Stud_Name)) {
       echo "<script>
               alert('Invalid student name. Only letters and spaces are allowed.');
               window.history.back();
             </script>";
       exit();
-    }
+  }
 
-    if (!preg_match("/^\d{10}$/", $Updated_Stud_ID)) {
+  if (!preg_match("/^\d{10}$/", $Updated_Stud_ID)) {
       echo "<script>
               alert('Invalid Student ID. It must be numbers only and exactly 10 digits.');
               window.history.back();
             </script>";
       exit();
-    }
+  }
 
-    if ($Stud_Part < 1 || $Stud_Part > 7) {
+  if ($Stud_Part < 1 || $Stud_Part > 7) {
       echo "<script>
               alert('Invalid Student Part. It must be between 1 and 7.');
               window.history.back();
             </script>";
       exit();
-    }
+  }
 
-    // Update query
-    $updateSQL = "UPDATE student SET Stud_Name = ?, Stud_ID = ?, Stud_Part = ? WHERE Stud_ID = ?";
-    $updateStmt = $conn->prepare($updateSQL);
-    if (!$updateStmt) {
+  // Check for duplicate Student ID
+  $checkSQL = "SELECT COUNT(*) AS count FROM student WHERE Stud_ID = ? AND Stud_ID != ?";
+  $checkStmt = $conn->prepare($checkSQL);
+  if (!$checkStmt) {
+      die("Failed to prepare duplicate check statement: " . $conn->error);
+  }
+  $checkStmt->bind_param("ii", $Updated_Stud_ID, $Stud_ID);
+  $checkStmt->execute();
+  $checkStmt->bind_result($count);
+  $checkStmt->fetch();
+  $checkStmt->close();
+
+  if ($count > 0) {
+      echo "<script>
+              alert('Duplicate Student ID found. Please use a unique ID.');
+              window.history.back();
+            </script>";
+      exit();
+  }
+
+  // Update query
+  $updateSQL = "UPDATE student SET Stud_Name = ?, Stud_ID = ?, Stud_Part = ? WHERE Stud_ID = ?";
+  $updateStmt = $conn->prepare($updateSQL);
+  if (!$updateStmt) {
       die("Failed to prepare update statement: " . $conn->error);
-    }
-    $updateStmt->bind_param("siii", $Stud_Name, $Updated_Stud_ID, $Stud_Part, $Stud_ID);
+  }
+  $updateStmt->bind_param("siii", $Stud_Name, $Updated_Stud_ID, $Stud_Part, $Stud_ID);
 
-    if ($updateStmt->execute()) {
+  if ($updateStmt->execute()) {
       echo "<script>
               alert('Student information successfully updated!');
               window.location.href = 'studList.php';
             </script>";
       exit();
-    } else {
+  } else {
       echo "<script>
               alert('Error updating record. Please try again.');
               window.history.back();
             </script>";
       exit();
-    }
-
-    $updateStmt->close();
+  }
 }
+
 
 $stmt->close();
 $conn->close();
@@ -158,12 +177,6 @@ input[type="text"] {
   margin-bottom: 15px;
 }
 
-nav#sidebar{
-  position: fixed;
-  height: 100vh;
-  z-index: 100;
-}
-
 /* Submit button styling */
 button {
   background-color: #333;
@@ -194,32 +207,44 @@ button:hover {
 			<div class="p-4">
 		  		<h1><a href="dashboard.php" class="logo"><?php echo $_SESSION['Admin_name'] ?><span><?php echo $_SESSION['Admin_ID'] ?><span>Admin</span></a></h1>
                   <ul class="list-unstyled components mb-5">
-	                <li>
-	                    <a href="dashboard.php"><span class="fa fa-home mr-3"></span> Lab Statistics</a>
+                  <li>
+	                    <a href="dashboard.php"><span class="fa fa-pie-chart mr-3"></span> Lab Statistics</a>
 	                </li>
                     <li>
-	        	        <a href="labLogs.php"><span class="fa fa-user mr-3"></span> Entry/Exit Logs</a>
+	        	        <a href="labLogs.php"><span class="fa fa-clock-o mr-3"></span> Entry/Exit Logs</a>
 	                </li>
                     <li>
-	        	        <a href="studList.php"><span class="fa fa-user mr-3"></span> Student List</a>
+	        	        <a><span class="fa fa-user mr-3"></span>Student Manage</a>
 	                </li>
                     <li>
-	        	        <a href="studRegister.php"><span class="fa fa-user mr-3"></span> Register New Student</a>
-	                </li>
-                    <li class="active">
-	        	        <a href="studUpdate.php"><span class="fa fa-user mr-3"></span> Update Student Info</a>
+                        <a href="studList.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Student List</a>
 	                </li>
                     <li>
-	        	        <a href="lectList.php"><span class="fa fa-user mr-3"></span> Lecturer List</a>
+                        <a href="studRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Student</a>
+	                </li>
+                  <li>
+                        <a href="#"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Update Student Info</a>
+	                </li>
+                  <li>
+	        	        <a><span class="fa fa-user mr-3"></span>Lecturer Manage</a>
 	                </li>
                     <li>
-	        	        <a href="lectRegister.php"><span class="fa fa-user mr-3"></span> Register New Lecturer</a>
+	        	        <a href="lectList.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Lecturer List</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-user mr-3"></span> Timetable</a>
+	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-                        <a href='logout.php'><span class="fa fa-paper-plane mr-3"></span> Log Out</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+                  <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                  <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
+	                </li>
+                    <li>
+                        <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
                     </li>
                 </ul>
 

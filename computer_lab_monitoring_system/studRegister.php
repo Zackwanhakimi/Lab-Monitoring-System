@@ -68,7 +68,6 @@ include("connect.php");
     <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800,900" rel="stylesheet">
 		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 		<link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/dashboard.css">
   </head>
 
 <style>
@@ -120,7 +119,7 @@ input[type="text"] {
 }
 
 /* Submit button styling */
-.submit-btn {
+button {
   background-color: #333;
   color: #fff;
   font-size: 14px;
@@ -133,16 +132,9 @@ input[type="text"] {
   transition: background-color 0.3s ease;
 }
 
-.submit-btn:hover {
+button:hover {
   background-color: #555;
 }
-
-nav#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
-}
-
 </style>
 
   <body onload="showNotification()">
@@ -164,7 +156,7 @@ nav#sidebar{
                     <li>
 	        	        <a href="labLogs.php"><span class="fa fa-clock-o mr-3"></span> Entry/Exit Logs</a>
 	                </li>
-                    <li class="active">
+                    <li>
 	        	        <a><span class="fa fa-user mr-3"></span>Student Manage</a>
 	                </li>
                     <li>
@@ -183,7 +175,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+                  <li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+                  <li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
@@ -216,7 +214,7 @@ nav#sidebar{
             <option value="6">6</option>
             <option value="7">7</option>
         </select></input></p>
-			<button class="submit-btn">SUBMIT</button>
+			<button>SUBMIT</button>
 		</div>
 			</div>
 		</form>
@@ -227,23 +225,5 @@ nav#sidebar{
     <script src="js/popper.js"></script>
     <script src="js/bootstrap.min.js"></script>
     <script src="js/main.js"></script>
-
-    <script>
-	var dropdown = document.getElementsByClassName("dropdown-btn");
-	var i;
-
-	for (i = 0; i < dropdown.length; i++) {
-		dropdown[i].addEventListener("click", function() {
-			this.classList.toggle("active");
-			var dropdownContent = this.nextElementSibling;
-			if (dropdownContent.style.display === "block") {
-			dropdownContent.style.display = "none";
-			} else {
-			dropdownContent.style.display = "block";
-			}
-		});
-	}
-
-	</script>
   </body>
 </html>

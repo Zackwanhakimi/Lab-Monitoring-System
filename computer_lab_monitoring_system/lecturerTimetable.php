@@ -2,12 +2,16 @@
 session_start();
 
 // Check if user is logged in
-if (!isset($_SESSION['Admin_ID'])) {
+if (!isset($_SESSION['Lect_ID'])) {
     header("Location: login.php");
     exit();
 }
 
 include("connect.php");
+
+//Fetch current lecturer info
+$lecturer_id = $_SESSION['Lect_ID'];
+$lecturer_name = $_SESSION['Lect_Name'];
 
 // Fetch all labs
 $labsQuery = "SELECT Lab_ID, Lab_Name FROM lab";
@@ -127,7 +131,7 @@ $timeSlots[] = "Slot $i";}
 	.occupied {
 		background-color: #ffffcc;
 	}
-    .slot-timings {
+.slot-timings {
     margin-top: 30px;
     padding: 15px;
     border-top: 2px solid #4caf50;
@@ -146,61 +150,35 @@ $timeSlots[] = "Slot $i";}
     font-size: 14px;
     color: #555;
 }
-    </style>
+
+</style>
 </head>
 <body>
 <div class="wrapper d-flex align-items-stretch">
 <nav id="sidebar">
 			<div class="custom-menu">
 				<button type="button" id="sidebarCollapse" class="btn btn-primary">
-	                <i class="fa fa-bars"></i>
-	                <span class="sr-only">Toggle Menu</span>
-	            </button>
-            </div>
+	          	<i class="fa fa-bars"></i>
+	          	<span class="sr-only">Toggle Menu</span>
+	        	</button>
+        	</div>
 			<div class="p-4">
-		  		<h1><a href="dashboard.php" class="logo"><?php echo $_SESSION['Admin_name'] ?><span><?php echo $_SESSION['Admin_ID'] ?><span>Admin</span></a></h1>
-                  <ul class="list-unstyled components mb-5">
-                  <li>
-	                    <a href="dashboard.php"><span class="fa fa-pie-chart mr-3"></span> Lab Statistics</a>
-	                </li>
-                    <li>
-	        	        <a href="labLogs.php"><span class="fa fa-clock-o mr-3"></span> Entry/Exit Logs</a>
-	                </li>
-                    <li>
-	        	        <a><span class="fa fa-user mr-3"></span>Student Manage</a>
-	                </li>
-                    <li>
-                        <a href="studList.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Student List</a>
-	                </li>
-                    <li>
-                        <a href="studRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Student</a>
-	                </li>
-                  <li>
-	        	        <a><span class="fa fa-user mr-3"></span>Lecturer Manage</a>
-	                </li>
-                    <li>
-	        	        <a href="lectList.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Lecturer List</a>
-	                </li>
-                    <li>
-	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
-	                </li>
+			<h1><a href="index.html" class="logo"><?php echo htmlspecialchars($lecturer_name); ?><span><?php echo htmlspecialchars($lecturer_id); ?><span>Lecturer</span></a></h1>
+				<ul class="list-unstyled components mb-5">
+					<li>
+						<a href="lecturerDashboard.php"><span class="fa fa-home mr-3"></span> Home</a>
+					</li>
                     <li class="active">
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
-	                </li>
-                    <li>
-	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
-	                </li>
-                    <li>
-                        <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
-                    </li>
-                </ul>
-
-	            <div class="footer">
-	        	    <p><!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
-					  Copyright &copy;<script>document.write(new Date().getFullYear());</script> All rights reserved | Prototype by UitDevTech <i class="icon-heart" aria-hidden="true"></i> by <a href="https://colorlib.com" target="_blank">Colorlib.com</a>
-					  <!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. --></p>
-	            </div>
-            </div>
+						<a href="lecturerTimetable.php"><span class="fa fa-home mr-3"></span> Timetable</a>
+					</li>
+					<li>
+						<a href="lecturerInfo.php"><span class="fa fa-home mr-3"></span> Your Info</a>
+					</li>
+					<li>
+						<a href='logout.php'><span class="fa fa-paper-plane mr-3"></span> Log Out</a>
+					</li>
+				</ul>
+			</div>
     	</nav>
 		<div class="container mt-5">
         <h2 class="text-center">Weekly Lab Timetables</h2>
@@ -228,8 +206,7 @@ $timeSlots[] = "Slot $i";}
 
                                 // Render clickable cell spanning multiple slots
                                 echo "<td colspan='$duration' class='registered'>
-                                        <a href='timetableEditOrRemove.php?Timetable_ID={$class['Timetable_ID']}' 
-                                        style='text-decoration: none; color: black;'>
+                                        <a style='text-decoration: none; color: black;'>
                                             {$class['className']}
                                         </a>
                                     </td>";

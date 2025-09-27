@@ -1,0 +1,4 @@
+install instruction:
+1. copy paste "computer_lab_monitoring_system" pigi "C:\xampp\htdocs" replace ja file kalau ada dia tanya
+2. import database "127_0_0_1" dalam phpmadmin
+3. search "localhost" dkt browser

@@ -10,14 +10,33 @@ if (!isset($_SESSION['Admin_ID'])) {
 
 include("connect.php");
 
-$sql = "SELECT * FROM student ORDER BY Stud_Part ASC, Stud_Name ASC";
-$result = $conn->query($sql);
+// Get search filters
+$searchPart = isset($_GET['searchPart']) ? $_GET['searchPart'] : '';
+$searchID = isset($_GET['searchID']) ? trim($_GET['searchID']) : '';
 
 $groupedStudents = [];
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $Stud_Part = $row['Stud_Part'];
-        $groupedStudents[$Stud_Part][] = $row;
+if ($searchPart !== '' || $searchID) { // Run query only if a filter is applied
+    $conditions = [];
+    
+    if ($searchPart !== '' && $searchPart !== 'all') { // If not "All Parts"
+        $conditions[] = "Stud_Part = " . intval($searchPart);
+    }
+    if ($searchID) {
+        $conditions[] = "Stud_ID LIKE '%" . $conn->real_escape_string($searchID) . "%'";
+    }
+
+    $sql = "SELECT * FROM student";
+    if (!empty($conditions)) {
+        $sql .= " WHERE " . implode(' AND ', $conditions);
+    }
+    $sql .= " ORDER BY Stud_Part ASC, Stud_Name ASC";
+
+    $result = $conn->query($sql);
+    if ($result->num_rows > 0) {
+        while ($row = $result->fetch_assoc()) {
+            $Stud_Part = $row['Stud_Part'];
+            $groupedStudents[$Stud_Part][] = $row;
+        }
     }
 }
 ?>
@@ -75,81 +94,35 @@ if ($result->num_rows > 0) {
 	}
 	
 
-/* Center the dropdown button */
-.center {
-    display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center;
+	/* dropdown style */
+
+	.dropdown-container{
+    display: none;
+    padding-left: 8px;
 }
 
-/* Dropdown button */
-.dropdown-btn {
-	font: "Poppins";
-	display: flex;
-    align-items: center;
-    padding: 8px 16px;
+	.dropdown-container a{
+    font-size: medium;
+}
+
+	.fa-caret-down {
+    float: right;
+    padding-right: 8px;
+}
+
+.dropdown-btn{
+	padding: 8px 8px 8px 32px;
     text-decoration: none;
-    color: #FFFFFF99;
-    display: flex; /* Keep the icon and text aligned */
-    justify-content: space-between;
-    width: 100%; /* Full width */
-    background: none;
+    color: #818181;
+    display: block;
+    transition: 0.3s;
     border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
     cursor: pointer;
     outline: none;
-    font-size: 16px;
-    transition: color 0.3s;
-	z-index: 101;
-	
 }
-
-.dropdown-btn:hover {
-    color: #f2f2f2;
-}
-
-/* Dropdown container list styling */
-.dropdown-container {
-	font: "Poppins";
-    display: none; /* Hidden by default */
-    flex-direction: row;
-    margin-top: 10px;
-    padding-left: 20px;
-}
-
-.dropdown-container a {
-	display: flex;
-	flex-direction: column;
-    color: #FFFFFF99;
-    text-decoration: none;
-    padding: 5px 10px;
-    transition: color 0.3s;
-}
-
-.dropdown-container a:hover {
-    color: #f2f2f2;
-}
-
-/* Optional: Icon alignment */
-.fa-caret-down {
-    margin-left: auto; /* Push the caret icon to the far right */
-}
-
-.fa-pencil-square-o{
-	color:#6fb5ff;
-}
-
-
-nav#sidebar{
-    position: fixed;
-    height: 100vh;
-    z-index: 100;
-}
-
-/* .center{
-	display: flex;
-	justify-content: center;
-	align-items: center;
-} */
   </style>
   <body>
 		<div class="wrapper d-flex align-items-stretch">
@@ -163,13 +136,13 @@ nav#sidebar{
 			<div class="p-4">
 		  		<h1><a href="dashboard.php" class="logo"><?php echo $_SESSION['Admin_name'] ?><span><?php echo $_SESSION['Admin_ID'] ?><span>Admin</span></a></h1>
                   <ul class="list-unstyled components mb-5">
-				  <li>
+                  <li>
 	                    <a href="dashboard.php"><span class="fa fa-pie-chart mr-3"></span> Lab Statistics</a>
 	                </li>
                     <li>
 	        	        <a href="labLogs.php"><span class="fa fa-clock-o mr-3"></span> Entry/Exit Logs</a>
 	                </li>
-                    <li class="active">
+                    <li>
 	        	        <a><span class="fa fa-user mr-3"></span>Student Manage</a>
 	                </li>
                     <li class="active">
@@ -188,7 +161,13 @@ nav#sidebar{
 	        	        <a href="lectRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Register New Lecturer</a>
 	                </li>
                     <li>
-	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable</a>
+	        	        <a href="timetable.php"><span class="fa fa-table mr-3"></span> Timetable </a>
+	                </li>
+					<li>
+	        	        <a href="timetableRegister.php"><span class="fa mr-3"></span><span class="fa fa-plus mr-3"></span> Add new class to Timetable</a>
+	                </li>
+					<li>
+	        	        <a href="adminInfo.php"><span class="fa fa-user mr-3"></span> Admin Info </a>
 	                </li>
                     <li>
                         <a href='logout.php'><span class="fa fa-sign-out mr-3"></span> Log Out</a>
@@ -204,10 +183,28 @@ nav#sidebar{
     	</nav>
 
         <!-- Page Content  -->
-      <div id="content" class="p-4 p-md-5 pt-5">
+      	<div id="content" class="p-4 p-md-5 pt-5">
         <h2 class="mb-4">STUDENT LIST</h2>
 		<h3>ALL REGISTERED STUDENT RECORD</h2>
-		<p>ALL STUDENT REGISTERED TABLE</p>
+		<!-- Search Form -->
+		<div class="search-container">
+                <form method="GET" action="studList.php">
+                    <label for="searchPart">Filter by Part:</label>
+                    <select name="searchPart" id="searchPart">
+						<option value="" <?= $searchPart === '' ? 'selected' : '' ?>>Select Your Part</option>
+						<option value="all" <?= $searchPart === 'all' ? 'selected' : '' ?>>All Parts</option>
+                        <?php for ($i = 1; $i <= 8; $i++): ?>
+                            <option value="<?= $i ?>" <?= $searchPart == $i ? 'selected' : '' ?>>Part <?= $i ?></option>
+                        <?php endfor; ?>
+                    </select>
+
+                    <label for="searchID">Search by Student ID:</label>
+                    <input type="text" name="searchID" id="searchID" placeholder="Enter Student ID" value="<?= htmlspecialchars($searchID) ?>">
+
+                    <button type="submit">Search</button>
+                    <a href="studList.php" style="padding: 8px; background-color: #4caf50; color: white; text-decoration: none;">Reset</a>
+                </form>
+            </div>
 		<?php if (!empty($groupedStudents)): ?>
         	<?php foreach ($groupedStudents as $part => $students): ?>
         		<h2>Part <?= htmlspecialchars($part) ?></h2>

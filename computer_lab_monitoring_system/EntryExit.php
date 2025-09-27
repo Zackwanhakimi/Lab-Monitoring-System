@@ -1,15 +1,64 @@
 <?php
-session_start();
 include 'connect.php';
+session_start(); // Start the session
 
+// Initialize a variable for messages
+$message = "";
+
+// Check for selected lab in the query string and update the session
+if (isset($_GET['lab_id'])) {
+    $_SESSION['selected_lab_id'] = intval($_GET['lab_id']);
+}
+
+// Get the current selected lab ID from the session, default to 1 if not set
 $selected_lab_id = $_SESSION['selected_lab_id'] ?? 1;
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $stud_id = $_POST['stud_id'];
+    $lab_id = $_POST['lab_id']; // Capture the selected lab ID
+
+    // Sanitize inputs
+    $stud_id = intval($stud_id); // Ensure only the first 10 characters
+    $lab_id = intval($lab_id);
+
+    // Check if student ID exists
+    $check_student = "SELECT * FROM Student WHERE Stud_ID = '$stud_id'";
+    $result = $conn->query($check_student);
+
+    if ($result->num_rows == 0) {
+        // Invalid student ID
+        $message = "Invalid Student ID.";
+    } else {
+        // Check for an open entry (no exit time)
+        $check_open_entry = "SELECT * FROM Entry WHERE Stud_ID = '$stud_id' AND Lab_ID = $lab_id AND Entry_EndTime IS NULL";
+        $result_open_entry = $conn->query($check_open_entry);
+
+        if ($result_open_entry->num_rows > 0) {
+            // Open entry found, record exit time
+            $update_exit = "UPDATE Entry 
+                            SET Entry_EndTime = NOW() 
+                            WHERE Stud_ID = '$stud_id' AND Lab_ID = $lab_id AND Entry_EndTime IS NULL";
+            if ($conn->query($update_exit) === TRUE) {
+                $message = "Exit time recorded successfully.";
+            } else {
+                $message = "Error updating record: " . $conn->error;
+            }
+        } else {
+            // No open entry, record entry time
+            $insert_entry = "INSERT INTO Entry (Entry_Date, Entry_StartTime, Lab_ID, Stud_ID) 
+                            VALUES (CURDATE(), NOW(), $lab_id, '$stud_id')";
+            if ($conn->query($insert_entry) === TRUE) {
+                $message = "Entry time recorded successfully.";
+            } else {
+                $message = "Error inserting record: " . $conn->error;
+            }
+        }
+    }
+}
 
 // Fetch labs
 $labs_query = "SELECT Lab_ID, Lab_Name FROM Lab";
 $result_labs = $conn->query($labs_query);
-
-// Default selected lab
-$selected_lab_id = isset($_GET['lab_id']) ? intval($_GET['lab_id']) : 1;
 
 // Fetch current students in the selected lab
 $sql_current_students = "SELECT e.Entry_ID, e.Stud_ID, s.Stud_Name, e.Entry_StartTime 
@@ -83,7 +132,7 @@ form input, form button {
     <div class="wrapper">
         <h2>Record Lab Entry/Exit</h2>
         
-        <!-- Lab Tabs -->
+    <!-- Lab Tabs -->
     <div class="lab-tabs">
         <?php while ($lab = $result_labs->fetch_assoc()): ?>
             <a href="EntryExit.php?lab_id=<?= $lab['Lab_ID']; ?>" 
@@ -94,15 +143,16 @@ form input, form button {
     </div>
 
     <!-- Form for Student ID -->
-    <form id="entryForm" action="entry_logic.php" method="POST">
+    <form id="entryForm" action="EntryExit.php" method="POST">
         <input type="hidden" name="lab_id" value="<?= $selected_lab_id; ?>">
         <label for="stud_id">Enter Your Student ID:</label>
         <input type="text" id="stud_id" name="stud_id" required maxlength="10">
         <button type="submit">Submit</button>
+        <p><?php echo $message; ?></p> <!-- Display error or success messages -->
     </form>
 
 
-        <!-- Display current students in lab -->
+<!-- Display current students in lab -->
 <h3>Current Students in Lab:</h3>
 <table>
     <thead>

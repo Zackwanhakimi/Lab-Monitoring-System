@@ -34,7 +34,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                   </script>";
             exit();
         }
-        $stmt->close();
     } else {
         echo "<script>
                 alert('Database error. Please try again later.');
